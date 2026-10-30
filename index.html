@@ -50,6 +50,13 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
 @media (max-width:700px) and (orientation:portrait),(pointer:coarse) and (max-width:1100px) and (orientation:portrait){
  .mobile-book{visibility:hidden}.rotate-prompt{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:27px;line-height:2;background:var(--paper);z-index:20}
 }
+
+/* Rotate the reader itself in portrait; no device orientation permission needed. */
+@media (max-width:700px) and (orientation:portrait),(pointer:coarse) and (max-width:1100px) and (orientation:portrait){
+ .rotate-prompt{display:none!important}
+ .mobile-book{visibility:visible;position:fixed;left:100vw;top:0;width:100svh;height:100vw;transform-origin:top left;transform:rotate(90deg)}
+ .mobile-cover,.mobile-spread,.mobile-ending{height:100vw}
+}
 </style>
 </head>
 <body>
@@ -129,7 +136,7 @@ function initMobile(){
  host.innerHTML=`<div class="mobile-cover"><img src="${coverImage}" alt="טַלְיָה וְעִידוֹ — כריכת הספר"></div>`+spreads.map((s,i)=>`<article class="mobile-spread"><div class="art">${artwork(s,i+1)}</div><div class="mobile-copy"><h2>${esc(s.title)}</h2><p class="story">${esc(s.text)}</p></div></article>`).join('')+`<div class="mobile-ending"><img src="${backCoverImage}" alt="כריכה אחורית"><p>המשך יבוא</p></div>`;
 }
 function fitMobile(){
- if(!mobileQuery.matches||innerWidth<innerHeight)return;
+ if(!mobileQuery.matches)return;
  document.querySelectorAll('.mobile-copy').forEach(page=>{const story=page.querySelector('.story');story.style.fontSize='19px';let size=19;while(page.scrollHeight>page.clientHeight+1&&size>10){size-=.5;story.style.fontSize=size+'px'}});
 }
 mobileQuery.addEventListener('change',()=>{initMobile();requestAnimationFrame(fitMobile)});initMobile();requestAnimationFrame(fitMobile);window.addEventListener('resize',()=>requestAnimationFrame(fitMobile));
