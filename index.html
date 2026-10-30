@@ -24,6 +24,17 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
 .turn.reverse-turn{left:0;transform-origin:right center;animation:reverse-page 850ms cubic-bezier(.3,.05,.2,1) forwards}
 @keyframes reverse-page{from{transform:rotateY(180deg)}to{transform:rotateY(0deg)}}
 .ending-message{position:absolute;left:0;top:0;width:50%;height:100%;display:flex;align-items:center;justify-content:center;text-align:center;font-family:Georgia,"Times New Roman",serif;font-size:clamp(24px,4vw,58px);color:var(--ink)}
+
+.mobile-book{display:none}
+@media (max-width:700px),(pointer:coarse) and (max-width:1100px){
+ body{display:block;min-height:100svh}.shell{padding:0;max-width:none}.stage,.controls{display:none}.mobile-book{display:block;background:var(--paper)}
+ .mobile-cover{min-height:85svh;display:flex;align-items:center;justify-content:center;padding:35px 20px}.mobile-cover img{width:50%;max-height:70svh;object-fit:contain}
+ .mobile-spread{display:flex;flex-direction:column;direction:rtl;border-top:1px solid #d8d1bf}.mobile-spread .art{width:100%;aspect-ratio:1312/1199}.mobile-spread .art img{width:100%;height:100%;display:block;object-fit:contain}
+ .mobile-copy{padding:30px 24px 42px;text-align:right}.mobile-copy h2{font-family:Georgia,"Times New Roman",serif;font-size:28px;font-weight:normal;line-height:1.5;margin:0 0 22px}.mobile-copy .story{font-size:21px;line-height:1.9;overflow-wrap:break-word}.mobile-ending img{display:block;width:100%;height:auto}.mobile-ending p{margin:0;padding:65px 20px;text-align:center;font-family:Georgia,"Times New Roman",serif;font-size:40px}
+}
+@media (pointer:coarse) and (max-width:1100px) and (orientation:landscape){
+ .mobile-spread{display:grid;grid-template-columns:1fr 1fr;direction:ltr;align-items:center}.mobile-spread .art{align-self:center}.mobile-copy{direction:rtl;padding:24px}.mobile-copy h2{font-size:25px}.mobile-copy .story{font-size:19px;line-height:1.8}.mobile-cover{min-height:100svh}.mobile-cover img{width:auto;max-width:50%;height:70svh}.mobile-ending{display:grid;grid-template-columns:1fr 1fr;direction:rtl;align-items:center}.mobile-ending p{direction:rtl}
+}
 </style>
 </head>
 <body>
@@ -33,6 +44,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
 <section class="stage" aria-label="סֵפֶר אִינְטֶרַאקְטִיבִי"><div class="book" id="book"></div></section>
 <nav class="controls" aria-label="דִּפְדּוּף"><button class="nav" id="prev">→ הַקּוֹדֵם</button><div class="position"><div class="dots" id="dots"></div><span id="status" role="status" aria-live="polite"></span></div><button class="nav" id="next">הַבָּא ←</button></nav>
 
+<section class="mobile-book" id="mobile-book" aria-label="הספר בגלילה"></section>
 </main>
 <script>
 // Replace these five entries with your final Hebrew text and image paths.
@@ -96,6 +108,12 @@ async function go(target){
 }
 window.addEventListener('resize',()=>{if(!busy)fitText(state(current))});
 
+const mobileQuery=window.matchMedia('(max-width:700px), (pointer:coarse) and (max-width:1100px)');
+function initMobile(){
+ const host=document.querySelector('#mobile-book');if(!mobileQuery.matches||host.childElementCount)return;
+ host.innerHTML=`<div class="mobile-cover"><img src="${coverImage}" alt="טַלְיָה וְעִידוֹ — כריכת הספר"></div>`+spreads.map((s,i)=>`<article class="mobile-spread"><div class="art">${artwork(s,i+1)}</div><div class="mobile-copy"><h2>${esc(s.title)}</h2><p class="story">${esc(s.text)}</p></div></article>`).join('')+`<div class="mobile-ending"><img src="${backCoverImage}" alt="כריכה אחורית"><p>המשך יבוא</p></div>`;
+}
+mobileQuery.addEventListener('change',initMobile);initMobile();
 prev.onclick=()=>go(current-1);next.onclick=()=>go(current+1);document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();go(current+1)}if(e.key==='ArrowRight'){e.preventDefault();go(current-1)}});let touchX=null;book.addEventListener('touchstart',e=>{touchX=e.changedTouches[0].clientX},{passive:true});book.addEventListener('touchend',e=>{if(touchX===null)return;const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)>45)go(current+(dx>0?1:-1));touchX=null},{passive:true});render();
 </script>
 </body>
