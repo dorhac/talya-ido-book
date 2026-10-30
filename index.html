@@ -65,6 +65,19 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
  .mobile-track>.mobile-cover,.mobile-track>.mobile-spread,.mobile-track>.mobile-ending{flex:0 0 var(--reader-width);width:var(--reader-width);height:var(--reader-height);min-height:0;max-height:var(--reader-height);overflow:hidden;scroll-snap-align:none;box-sizing:border-box}
  .mobile-copy{box-sizing:border-box}.mobile-spread .art{min-width:0}.mobile-track img{user-select:none;-webkit-user-drag:none}
 }
+
+@media (max-width:700px),(pointer:coarse) and (max-width:1100px){
+ .mobile-book{perspective:1800px}.mobile-track{transition:none}
+ .mobile-next{position:absolute;left:12px;bottom:10px;z-index:40;border:1px solid #bf6d4866;border-radius:30px;background:#fffaf0ed;color:var(--ink);padding:10px 19px;font-size:15px;box-shadow:0 3px 12px #0002;touch-action:manipulation}
+ .mobile-next[hidden]{display:none}.mobile-next:disabled{opacity:.6}
+ .mobile-flip{position:absolute;left:0;top:0;width:50%;height:100%;transform-origin:right center;transform-style:preserve-3d;z-index:30;pointer-events:none;will-change:transform}
+ .mobile-forward{animation:mobile-open 750ms cubic-bezier(.3,.05,.2,1) forwards}.mobile-reverse{animation:mobile-close 750ms cubic-bezier(.3,.05,.2,1) forwards}
+ .mobile-flip .face{background:var(--paper);height:100%}.mobile-flip .face>*{width:100%!important;height:100%!important;min-height:0!important;max-height:100%!important;box-sizing:border-box}
+ .mobile-flip .face .art{aspect-ratio:auto}.mobile-flip img{width:100%;height:100%;object-fit:contain}.mobile-flip .mobile-cover img{width:50%;height:70%}.mobile-flip .mobile-ending{display:block}.mobile-flip .mobile-ending p{display:none}
+ @keyframes mobile-open{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
+ @keyframes mobile-close{from{transform:rotateY(180deg)}to{transform:rotateY(0)}}
+}
+@media(prefers-reduced-motion:reduce){.mobile-flip{animation-duration:1ms}}
 </style>
 </head>
 <body>
@@ -139,8 +152,24 @@ async function go(target){
 window.addEventListener('resize',()=>{if(!busy)fitText(state(current))});
 
 const mobileQuery=window.matchMedia('(max-width:700px), (pointer:coarse) and (max-width:1100px)');
-let mobileIndex=0, mobileWidth=0, mobilePortrait=false;
-function positionMobile(){const track=document.querySelector('.mobile-track');if(track)track.style.transform=`translate3d(${-mobileIndex*mobileWidth}px,0,0)`}
+let mobileIndex=0, mobileWidth=0, mobilePortrait=false, mobileTurning=false;
+function positionMobile(){const track=document.querySelector('.mobile-track');if(track)track.style.transform=`translate3d(${-mobileIndex*mobileWidth}px,0,0)`;const cta=document.querySelector('.mobile-next');if(cta){cta.hidden=mobileIndex===6;cta.disabled=mobileTurning}}
+async function turnMobile(target){
+ if(mobileTurning||target<0||target>6||target===mobileIndex)return;
+ mobileTurning=true;positionMobile();
+ const host=document.querySelector('#mobile-book'),track=host.querySelector('.mobile-track'),old=mobileIndex,forward=target>old;
+ await prepareImage(target===0?coverImage:target===6?backCoverImage:spreads[target-1].image);
+ const sheet=document.createElement('div');sheet.className='mobile-flip '+(forward?'mobile-forward':'mobile-reverse');
+ function side(index,art){const slide=track.children[index];const source=slide.querySelector(art?'.art':'.mobile-copy')||slide;return source.cloneNode(true)}
+ const front=document.createElement('div'),back=document.createElement('div');front.className='face';back.className='face back';
+ if(forward){front.append(side(old,true));back.append(side(target,false))}else{front.append(side(target,true));back.append(side(old,false))}
+ sheet.append(front,back);sheet.style.animation='none';host.append(sheet);
+ await Promise.all(Array.from(sheet.querySelectorAll('img')).map(im=>im.decode().catch(()=>{})));
+ await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+ mobileIndex=target;positionMobile();
+ sheet.addEventListener('animationend',()=>{sheet.remove();mobileTurning=false;positionMobile()},{once:true});sheet.style.animation='';
+}
+
 function layoutMobile(){
  if(!mobileQuery.matches)return;
  const host=document.querySelector('#mobile-book'),v=window.visualViewport;
@@ -155,10 +184,11 @@ function initMobile(){
  const host=document.querySelector('#mobile-book');if(!mobileQuery.matches)return;
  if(!host.childElementCount){
  host.innerHTML='<div class="mobile-track">'+`<div class="mobile-cover"><img src="${coverImage}" alt="טַלְיָה וְעִידוֹ — כריכת הספר"></div>`+spreads.map((s,i)=>`<article class="mobile-spread"><div class="art">${artwork(s,i+1)}</div><div class="mobile-copy"><h2>${esc(s.title)}</h2><p class="story">${esc(s.text)}</p></div></article>`).join('')+`<div class="mobile-ending"><img src="${backCoverImage}" alt="כריכה אחורית"><p>המשך יבוא</p></div></div>`;
+ const cta=document.createElement('button');cta.className='mobile-next';cta.type='button';cta.textContent='הבא ←';cta.setAttribute('aria-label','העמוד הבא');cta.onclick=()=>turnMobile(mobileIndex+1);host.append(cta);
  let start=null;
  host.addEventListener('touchstart',e=>{const t=e.touches[0];start={x:t.clientX,y:t.clientY}},{passive:true});
  host.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
- host.addEventListener('touchend',e=>{if(!start)return;const t=e.changedTouches[0];const delta=mobilePortrait?t.clientY-start.y:t.clientX-start.x;start=null;if(Math.abs(delta)<25)return;mobileIndex=Math.max(0,Math.min(6,mobileIndex+(delta>0?1:-1)));positionMobile()},{passive:true});
+ host.addEventListener('touchend',e=>{if(!start)return;const t=e.changedTouches[0];const delta=mobilePortrait?t.clientY-start.y:t.clientX-start.x;start=null;if(Math.abs(delta)<25)return;turnMobile(mobileIndex+(delta>0?1:-1))},{passive:true});
  host.addEventListener('touchcancel',()=>{start=null});
  }
  layoutMobile();
