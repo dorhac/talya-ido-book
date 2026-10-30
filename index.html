@@ -57,6 +57,14 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
  .mobile-book{visibility:visible;position:fixed;left:100vw;top:0;width:100svh;height:100vw;transform-origin:top left;transform:rotate(90deg)}
  .mobile-cover,.mobile-spread,.mobile-ending{height:100vw}
 }
+
+@media (max-width:700px),(pointer:coarse) and (max-width:1100px){
+ html,body,.shell{overflow:hidden!important;height:100%;margin:0;padding:0}.stage,.controls{display:none!important}
+ .mobile-book{display:block!important;visibility:visible!important;position:fixed!important;overflow:hidden!important;transform-origin:top left;scroll-snap-type:none;touch-action:none;direction:ltr;z-index:10;background:var(--paper)}
+ .mobile-track{display:flex;direction:ltr;width:max-content;height:100%;transition:transform 350ms ease;will-change:transform}
+ .mobile-track>.mobile-cover,.mobile-track>.mobile-spread,.mobile-track>.mobile-ending{flex:0 0 var(--reader-width);width:var(--reader-width);height:var(--reader-height);min-height:0;max-height:var(--reader-height);overflow:hidden;scroll-snap-align:none;box-sizing:border-box}
+ .mobile-copy{box-sizing:border-box}.mobile-spread .art{min-width:0}.mobile-track img{user-select:none;-webkit-user-drag:none}
+}
 </style>
 </head>
 <body>
@@ -66,7 +74,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
 <section class="stage" aria-label="סֵפֶר אִינְטֶרַאקְטִיבִי"><div class="book" id="book"></div></section>
 <nav class="controls" aria-label="דִּפְדּוּף"><button class="nav" id="prev">→ הַקּוֹדֵם</button><div class="position"><div class="dots" id="dots"></div><span id="status" role="status" aria-live="polite"></span></div><button class="nav" id="next">הַבָּא ←</button></nav>
 
-<div class="rotate-prompt" dir="rtl">↻<br>סובבו את הטלפון לרוחב</div><section class="mobile-book" id="mobile-book" aria-label="הספר בגלילה"></section>
+<section class="mobile-book" id="mobile-book" aria-label="הספר בגלילה"></section>
 </main>
 <script>
 // Replace these five entries with your final Hebrew text and image paths.
@@ -131,15 +139,34 @@ async function go(target){
 window.addEventListener('resize',()=>{if(!busy)fitText(state(current))});
 
 const mobileQuery=window.matchMedia('(max-width:700px), (pointer:coarse) and (max-width:1100px)');
-function initMobile(){
- const host=document.querySelector('#mobile-book');if(!mobileQuery.matches||host.childElementCount)return;
- host.innerHTML=`<div class="mobile-cover"><img src="${coverImage}" alt="טַלְיָה וְעִידוֹ — כריכת הספר"></div>`+spreads.map((s,i)=>`<article class="mobile-spread"><div class="art">${artwork(s,i+1)}</div><div class="mobile-copy"><h2>${esc(s.title)}</h2><p class="story">${esc(s.text)}</p></div></article>`).join('')+`<div class="mobile-ending"><img src="${backCoverImage}" alt="כריכה אחורית"><p>המשך יבוא</p></div>`;
-}
-function fitMobile(){
+let mobileIndex=0, mobileWidth=0, mobilePortrait=false;
+function positionMobile(){const track=document.querySelector('.mobile-track');if(track)track.style.transform=`translate3d(${-mobileIndex*mobileWidth}px,0,0)`}
+function layoutMobile(){
  if(!mobileQuery.matches)return;
- document.querySelectorAll('.mobile-copy').forEach(page=>{const story=page.querySelector('.story');story.style.fontSize='19px';let size=19;while(page.scrollHeight>page.clientHeight+1&&size>10){size-=.5;story.style.fontSize=size+'px'}});
+ const host=document.querySelector('#mobile-book'),v=window.visualViewport;
+ const w=Math.round(v?v.width:innerWidth),h=Math.round(v?v.height:innerHeight);
+ mobilePortrait=h>w;mobileWidth=Math.max(w,h);const height=Math.min(w,h);
+ host.style.width=mobileWidth+'px';host.style.height=height+'px';host.style.left=mobilePortrait?w+'px':'0px';host.style.top='0px';host.style.transform=mobilePortrait?'rotate(90deg)':'none';
+ host.style.setProperty('--reader-width',mobileWidth+'px');host.style.setProperty('--reader-height',height+'px');
+ positionMobile();
+ document.querySelectorAll('.mobile-copy').forEach(page=>{const story=page.querySelector('.story');let size=19;story.style.fontSize=size+'px';while(page.scrollHeight>page.clientHeight+1&&size>9){size-=.5;story.style.fontSize=size+'px'}});
 }
-mobileQuery.addEventListener('change',()=>{initMobile();requestAnimationFrame(fitMobile)});initMobile();requestAnimationFrame(fitMobile);window.addEventListener('resize',()=>requestAnimationFrame(fitMobile));
+function initMobile(){
+ const host=document.querySelector('#mobile-book');if(!mobileQuery.matches)return;
+ if(!host.childElementCount){
+ host.innerHTML='<div class="mobile-track">'+`<div class="mobile-cover"><img src="${coverImage}" alt="טַלְיָה וְעִידוֹ — כריכת הספר"></div>`+spreads.map((s,i)=>`<article class="mobile-spread"><div class="art">${artwork(s,i+1)}</div><div class="mobile-copy"><h2>${esc(s.title)}</h2><p class="story">${esc(s.text)}</p></div></article>`).join('')+`<div class="mobile-ending"><img src="${backCoverImage}" alt="כריכה אחורית"><p>המשך יבוא</p></div></div>`;
+ let start=null;
+ host.addEventListener('touchstart',e=>{const t=e.touches[0];start={x:t.clientX,y:t.clientY}},{passive:true});
+ host.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+ host.addEventListener('touchend',e=>{if(!start)return;const t=e.changedTouches[0];const delta=mobilePortrait?t.clientY-start.y:t.clientX-start.x;start=null;if(Math.abs(delta)<25)return;mobileIndex=Math.max(0,Math.min(6,mobileIndex+(delta>0?1:-1)));positionMobile()},{passive:true});
+ host.addEventListener('touchcancel',()=>{start=null});
+ }
+ layoutMobile();
+}
+mobileQuery.addEventListener('change',initMobile);initMobile();
+window.addEventListener('resize',()=>requestAnimationFrame(initMobile));
+window.visualViewport?.addEventListener('resize',()=>requestAnimationFrame(initMobile));
+
 prev.onclick=()=>go(current-1);next.onclick=()=>go(current+1);document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();go(current+1)}if(e.key==='ArrowRight'){e.preventDefault();go(current-1)}});let touchX=null;book.addEventListener('touchstart',e=>{touchX=e.changedTouches[0].clientX},{passive:true});book.addEventListener('touchend',e=>{if(touchX===null)return;const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)>45)go(current+(dx>0?1:-1));touchX=null},{passive:true});render();
 </script>
 </body>
