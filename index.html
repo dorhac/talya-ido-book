@@ -35,6 +35,21 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
 @media (max-width:700px),(pointer:coarse) and (max-width:1100px){
  .mobile-spread{display:grid;grid-template-columns:1fr 1fr;direction:ltr;align-items:center}.mobile-spread .art{align-self:center}.mobile-copy{direction:rtl;padding:24px}.mobile-copy h2{font-size:25px}.mobile-copy .story{font-size:19px;line-height:1.8}.mobile-cover{min-height:100svh}.mobile-cover img{width:auto;max-width:50%;height:70svh}.mobile-ending{display:grid;grid-template-columns:1fr 1fr;direction:rtl;align-items:center}.mobile-ending p{direction:rtl}
 }
+
+.rotate-prompt{display:none}
+@media (max-width:700px),(pointer:coarse) and (max-width:1100px){
+ html,body{height:100%;overflow:hidden;overscroll-behavior:none}.shell{height:100svh;padding:0}
+ .mobile-book{display:flex;flex-direction:row;direction:rtl;width:100vw;height:100svh;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+ .mobile-book::-webkit-scrollbar{display:none}
+ .mobile-cover,.mobile-spread,.mobile-ending{flex:0 0 100%;width:100%;height:100svh;min-height:0;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden;border:0}
+ .mobile-spread{display:grid;grid-template-columns:1fr 1fr;direction:ltr;align-items:stretch}.mobile-spread .art{width:100%;height:100%;aspect-ratio:auto;min-height:0}.mobile-spread .art img{object-fit:contain}
+ .mobile-copy{direction:rtl;height:100%;min-height:0;overflow:hidden;padding:16px 22px;display:flex;flex-direction:column;justify-content:safe center}.mobile-copy h2{font-size:23px;line-height:1.35;margin:0 0 10px;flex:none}.mobile-copy .story{font-size:19px;line-height:1.5;margin:0;flex:none}
+ .mobile-cover{padding:15px;display:flex}.mobile-cover img{width:50%;height:70%;max-height:none;max-width:none;object-fit:contain}
+ .mobile-ending{display:grid;grid-template-columns:1fr 1fr;direction:rtl;align-items:center}.mobile-ending img{width:100%;height:100%;object-fit:contain}.mobile-ending p{padding:0;font-size:36px}
+}
+@media (max-width:700px) and (orientation:portrait),(pointer:coarse) and (max-width:1100px) and (orientation:portrait){
+ .mobile-book{visibility:hidden}.rotate-prompt{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:27px;line-height:2;background:var(--paper);z-index:20}
+}
 </style>
 </head>
 <body>
@@ -44,7 +59,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100svh}.s
 <section class="stage" aria-label="סֵפֶר אִינְטֶרַאקְטִיבִי"><div class="book" id="book"></div></section>
 <nav class="controls" aria-label="דִּפְדּוּף"><button class="nav" id="prev">→ הַקּוֹדֵם</button><div class="position"><div class="dots" id="dots"></div><span id="status" role="status" aria-live="polite"></span></div><button class="nav" id="next">הַבָּא ←</button></nav>
 
-<section class="mobile-book" id="mobile-book" aria-label="הספר בגלילה"></section>
+<div class="rotate-prompt" dir="rtl">↻<br>סובבו את הטלפון לרוחב</div><section class="mobile-book" id="mobile-book" aria-label="הספר בגלילה"></section>
 </main>
 <script>
 // Replace these five entries with your final Hebrew text and image paths.
@@ -113,7 +128,11 @@ function initMobile(){
  const host=document.querySelector('#mobile-book');if(!mobileQuery.matches||host.childElementCount)return;
  host.innerHTML=`<div class="mobile-cover"><img src="${coverImage}" alt="טַלְיָה וְעִידוֹ — כריכת הספר"></div>`+spreads.map((s,i)=>`<article class="mobile-spread"><div class="art">${artwork(s,i+1)}</div><div class="mobile-copy"><h2>${esc(s.title)}</h2><p class="story">${esc(s.text)}</p></div></article>`).join('')+`<div class="mobile-ending"><img src="${backCoverImage}" alt="כריכה אחורית"><p>המשך יבוא</p></div>`;
 }
-mobileQuery.addEventListener('change',initMobile);initMobile();
+function fitMobile(){
+ if(!mobileQuery.matches||innerWidth<innerHeight)return;
+ document.querySelectorAll('.mobile-copy').forEach(page=>{const story=page.querySelector('.story');story.style.fontSize='19px';let size=19;while(page.scrollHeight>page.clientHeight+1&&size>10){size-=.5;story.style.fontSize=size+'px'}});
+}
+mobileQuery.addEventListener('change',()=>{initMobile();requestAnimationFrame(fitMobile)});initMobile();requestAnimationFrame(fitMobile);window.addEventListener('resize',()=>requestAnimationFrame(fitMobile));
 prev.onclick=()=>go(current-1);next.onclick=()=>go(current+1);document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();go(current+1)}if(e.key==='ArrowRight'){e.preventDefault();go(current-1)}});let touchX=null;book.addEventListener('touchstart',e=>{touchX=e.changedTouches[0].clientX},{passive:true});book.addEventListener('touchend',e=>{if(touchX===null)return;const dx=e.changedTouches[0].clientX-touchX;if(Math.abs(dx)>45)go(current+(dx>0?1:-1));touchX=null},{passive:true});render();
 </script>
 </body>
